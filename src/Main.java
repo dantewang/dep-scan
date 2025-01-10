@@ -54,7 +54,7 @@ public class Main {
 					switch (fileName) {
 						case "build.gradle", "build-buildscript.gradle" -> _scanBuildGradle(filePath, deps, logs);
 						case "dependencies.properties" -> _scanDepsProperties(filePath, deps, logs);
-						case "ivy.xml" -> _scanIvyXml(filePath, deps, logs);
+						// case "ivy.xml" -> _scanIvyXml(filePath, deps, logs);
 					}
 
 					return FileVisitResult.CONTINUE;
@@ -95,10 +95,6 @@ public class Main {
 		try (PrintWriter printWriter = new PrintWriter(Files.newBufferedWriter(Path.of(path.toString(), "../logs.log"), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING))) {
 			logs.forEach(printWriter::println);
 		}
-	}
-
-	private static void _scanIvyXml(Path filePath, Map<String, Map<String, Map<String, List<String>>>> deps, List<String> logs) {
-		logs.add("Skipping" + filePath.toString());
 	}
 
 	private static void _scanDepsProperties(Path filePath, Map<String, Map<String, Map<String, List<String>>>> deps, List<String> logs) throws IOException {
