@@ -33,6 +33,21 @@ public class Main {
 			path, new SimpleFileVisitor<>() {
 
 				@Override
+				public FileVisitResult preVisitDirectory(Path dirPath, BasicFileAttributes attrs) {
+					String dirName = dirPath.toString();
+
+					for (String excludedDirSuffix : _excludedDirSuffixes) {
+						if (dirName.endsWith(excludedDirSuffix)) {
+							logs.add("Skipping " + dirName);
+
+							return FileVisitResult.SKIP_SUBTREE;
+						}
+					}
+
+					return FileVisitResult.CONTINUE;
+				}
+
+				@Override
 				public FileVisitResult visitFile(Path filePath, BasicFileAttributes attrs) throws IOException {
 					String fileName = String.valueOf(filePath.getFileName());
 
@@ -149,6 +164,7 @@ public class Main {
 		files.add(dependencyParts[3] + "," + filePath.toString());
 	}
 
+	private static final List<String> _excludedDirSuffixes = List.of("modules/third-party");
 	private static final Pattern _buildGradlePattern = Pattern.compile("(.+?)group:\\s\"(.+?)\",\\sname:\\s\"(.+?)\".+?version:\\s\"(.+?)\"");
 	private static final List<String> _excludedGroupNames = List.of("com.liferay.portal");
 
