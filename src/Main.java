@@ -102,7 +102,7 @@ public class Main {
 	}
 
 	private static void _scanDepsProperties(Path filePath, Map<String, Map<String, Map<String, List<String>>>> deps, List<String> logs) throws IOException {
-		logs.add(filePath.toString());
+		logs.add("Scanning dependencies.properties file: " +filePath.toString());
 
 		for (String line : Files.readAllLines(filePath)) {
 			line = line.trim();
@@ -128,25 +128,24 @@ public class Main {
 	}
 
 	private static void _scanBuildGradle(Path filePath, Map<String, Map<String, Map<String, List<String>>>> deps, List<String> logs) throws IOException {
-		logs.add(filePath.toString());
+		logs.add("Scanning Gradle file: " + filePath.toString());
 
 		for (String line : Files.readAllLines(filePath)) {
 			line = line.trim();
 
 			Matcher matcher = _buildGradlePattern.matcher(line);
 
-			if (matcher.find()) {
-				if (matcher.groupCount() != 4) {
-					logs.add("\t[build.gradle] Line does not contain correct dependency: " + line);
-
-					continue;
-				}
-
-				_populateDeps(deps, new String[] {matcher.group(2), matcher.group(3), matcher.group(4), matcher.group(1)}, filePath);
+			if (!matcher.find()) {
+				continue;
 			}
-			else {
-				logs.add("\t[build.gradle] Unexpected dependency line format " + line);
+
+			if (matcher.groupCount() != 4) {
+				logs.add("\t[Gradle] Line does not contain correct dependency: " + line);
+
+				continue;
 			}
+
+			_populateDeps(deps, new String[] {matcher.group(2), matcher.group(3), matcher.group(4), matcher.group(1)}, filePath);
 		}
 	}
 
