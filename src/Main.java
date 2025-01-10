@@ -72,7 +72,7 @@ public class Main {
 			}
 		);
 
-		try (PrintWriter printWriter = new PrintWriter(Files.newBufferedWriter(Path.of(path.toString(), "full.csv"), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING))) {
+		try (PrintWriter printWriter = new PrintWriter(Files.newBufferedWriter(Path.of(path.toString(), "../full.csv"), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING))) {
 			deps.forEach(
 				(group, artifacts) -> artifacts.forEach(
 					(name, versionToFiles) -> versionToFiles.forEach(
@@ -80,7 +80,7 @@ public class Main {
 							filePath -> printWriter.println(group + "," + name + "," + version + "," + filePath)))));
 		}
 
-		try (PrintWriter printWriter = new PrintWriter(Files.newBufferedWriter(Path.of(path.toString(), "duplicated.csv"), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING))) {
+		try (PrintWriter printWriter = new PrintWriter(Files.newBufferedWriter(Path.of(path.toString(), "../duplicated.csv"), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING))) {
 			deps.forEach(
 				(group, artifacts) -> artifacts.forEach(
 					(name, versionToFiles) -> {
@@ -92,7 +92,7 @@ public class Main {
 					}));
 		}
 
-		try (PrintWriter printWriter = new PrintWriter(Files.newBufferedWriter(Path.of(path.toString(), "logs.log"), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING))) {
+		try (PrintWriter printWriter = new PrintWriter(Files.newBufferedWriter(Path.of(path.toString(), "../logs.log"), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING))) {
 			logs.forEach(printWriter::println);
 		}
 	}
