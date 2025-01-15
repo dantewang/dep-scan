@@ -27,17 +27,28 @@ public class Main {
 
 	private static void _scan(Path path) throws IOException {
 		Map<String, Map<String, Map<String, List<String>>>> deps = new TreeMap<>();
-		List<String> logs = new ArrayList<>();
+		List<String> logs = new ArrayList<>() {
+
+			@Override
+			public boolean add(String element) {
+				System.out.println(element);
+
+				return super.add(element);
+			}
+
+		};
 
 		Files.walkFileTree(
 			path, new SimpleFileVisitor<>() {
 
 				@Override
 				public FileVisitResult preVisitDirectory(Path dirPath, BasicFileAttributes attrs) {
-					String dirName = dirPath.toString();
+					Path relativeDirPath = path.relativize(dirPath);
 
-					for (String excludedDirSuffix : _excludedDirSuffixes) {
-						if (dirName.endsWith(excludedDirSuffix)) {
+					String dirName = relativeDirPath.toString();
+
+					for (String excludedDir : _excludedDirs) {
+						if (dirName.equals(excludedDir)) {
 							logs.add("Skipping " + dirName);
 
 							return FileVisitResult.SKIP_SUBTREE;
@@ -159,7 +170,7 @@ public class Main {
 		files.add(dependencyParts[3] + "," + filePath.toString());
 	}
 
-	private static final List<String> _excludedDirSuffixes = List.of("modules/third-party");
+	private static final List<String> _excludedDirs = List.of("modules/third-party", "workspaces");
 	private static final Pattern _buildGradlePattern = Pattern.compile("(.+?)group:\\s\"(.+?)\",\\sname:\\s\"(.+?)\".+?version:\\s\"(.+?)\"");
 	private static final List<String> _excludedGroupNames = List.of("com.liferay.portal");
 
