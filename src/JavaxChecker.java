@@ -184,7 +184,7 @@ public class JavaxChecker {
 
 			List<String> javaxImportPackages = new ArrayList<>();
 
-			String[] importPackages = importPackageAttribute.split(",");
+			String[] importPackages = importPackageAttribute.split("(?<!\\d),");
 
 			for (String importPackage : importPackages) {
 				for (String javaxPackage : _javaxPackages) {
