@@ -1,10 +1,16 @@
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
+import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -13,10 +19,15 @@ import java.util.Set;
 import java.util.jar.Attributes;
 import java.util.jar.JarFile;
 import java.util.jar.Manifest;
+import java.util.stream.Stream;
 
 public class JavaxChecker {
 
-	public static void scan(Path csvPath) throws IOException {
+	public static void scan(Path portalPath, Path csvPath) throws IOException {
+		Path path = Path.of(portalPath.toString(), "../javax.log");
+
+		Files.deleteIfExists(path);
+
 		List<String> lines = Files.readAllLines(csvPath);
 
 		Set<String> checkedDependencies = new LinkedHashSet<>();
@@ -30,16 +41,28 @@ public class JavaxChecker {
 
 			String dependency = dependencyColumns[0] + ":" + dependencyColumns[1] + ":" + dependencyColumns[2];
 
+			if (dependencyColumns[1].startsWith("com.liferay")) {
+				continue;
+			}
+
 			if (!checkedDependencies.add(dependency)) {
 				continue;
 			}
 
-			Path jarPath = _downloadDependency(dependencyColumns, null);
+			Path jarPath = _getDependency(portalPath, dependencyColumns, "");
+
+			if (jarPath == null) {
+				continue;
+			}
 
 			List<String> javaxImports = _checkJar(jarPath);
 
 			if (javaxImports == null) {
-				Path sourceJarPath = _downloadDependency(dependencyColumns, "sources");
+				Path sourceJarPath = _getDependency(portalPath, dependencyColumns, "-sources");
+
+				if (sourceJarPath == null) {
+					continue;
+				}
 
 				javaxImports = _checkSourceJar(sourceJarPath);
 			}
@@ -48,13 +71,96 @@ public class JavaxChecker {
 				continue;
 			}
 
-			System.out.println(dependency);
+			System.out.println("Found javax for " + dependency);
 
-			javaxImports.forEach(javaImport -> System.out.println("\t" + javaImport));
+			try (PrintWriter printWriter = new PrintWriter(Files.newBufferedWriter(path, StandardOpenOption.CREATE, StandardOpenOption.APPEND))) {
+				System.out.println(dependency);
+
+				javaxImports.forEach(javaImport -> printWriter.println("\t" + javaImport));
+			}
 		}
 	}
 
-	private static Path _downloadDependency(String[] columns, String sources) {
+	private static Path _getDependency(Path portalPath, String[] dependencyColumns, String suffix) {
+		Path jarPath = _findInLocalGradleCache(portalPath.resolve(".gradle/caches/modules-2/files-2.1"), dependencyColumns, suffix);
+
+		if (jarPath != null) {
+			return jarPath;
+		}
+
+		jarPath = _findInLocalGradleCache(Path.of(System.getProperty("user.home"), ".gradle/caches/modules-2/files-2.1"), dependencyColumns, suffix);
+
+		if (jarPath != null) {
+			return jarPath;
+		}
+
+		jarPath = _findInLocalMavenCache(Path.of(System.getProperty("user.home"), ".m2/repository"), dependencyColumns, suffix);
+
+		if (jarPath != null) {
+			return jarPath;
+		}
+
+		return _downloadDependency(dependencyColumns, suffix);
+	}
+
+	private static Path _downloadDependency(String[] dependencyColumns, String suffix) {
+		String uri = _URL_BASE + dependencyColumns[0].replace('.', '/') + "/" + dependencyColumns[1] + "/" + dependencyColumns[2] + "/" + _getJarFileName(dependencyColumns, suffix);
+
+		System.out.println("Downloading from " + uri);
+
+		Path jarPath = Path.of("files", _getJarFileName(dependencyColumns, suffix));
+
+		if (Files.exists(jarPath)) {
+			return jarPath;
+		}
+
+		try {
+			HttpResponse<Path> httpResponse = _httpClient.send(HttpRequest.newBuilder().GET().uri(URI.create(uri)).build(), HttpResponse.BodyHandlers.ofFile(jarPath));
+
+			return httpResponse.body();
+		}
+		catch (Exception exception) {
+			System.out.println(exception.getMessage());
+		}
+
+		return null;
+	}
+
+	private static Path _findInLocalMavenCache(Path mavenCachePath, String[] dependencyColumns, String suffix) {
+		Path jarPath = Path.of(
+			mavenCachePath.toString(), dependencyColumns[0].replace('.', '/'), dependencyColumns[1], dependencyColumns[2],
+			dependencyColumns[1] + "-" + dependencyColumns[2] + suffix + ".jar");
+
+		if (Files.exists(jarPath)) {
+			return jarPath;
+		}
+
+		return null;
+	}
+
+	private static String _getJarFileName(String[] dependencyColumns, String suffix) {
+		return dependencyColumns[1] + "-" + dependencyColumns[2] + suffix + ".jar";
+	}
+
+	private static Path _findInLocalGradleCache(Path gradleCachePath, String[] dependencyColumns, String suffix) {
+		try (Stream<Path> stream = Files.walk(Path.of(gradleCachePath.toString(), dependencyColumns[0], dependencyColumns[1], dependencyColumns[2]))) {
+			return stream.filter(
+				path -> {
+					String fileName = String.valueOf(path.getFileName());
+
+					String expectedFileName = _getJarFileName(dependencyColumns, suffix);
+
+					return expectedFileName.equals(fileName);
+				}
+			).findFirst(
+			).orElse(
+				null
+			);
+		}
+		catch (Exception exception) {
+			System.out.println(exception.getMessage());
+		}
+
 		return null;
 	}
 
@@ -124,7 +230,7 @@ public class JavaxChecker {
 
 
 					@Override
-					public FileVisitResult visitFileFailed(Path filePath, IOException ioException) throws IOException {
+					public FileVisitResult visitFileFailed(Path filePath, IOException ioException) {
 						ioException.printStackTrace(System.err);
 
 						return FileVisitResult.CONTINUE;
@@ -134,5 +240,9 @@ public class JavaxChecker {
 			return javaxImports;
 		}
 	}
+
+	private static final String _URL_BASE = "https://repo1.maven.org/maven2/";
+
+	private static final HttpClient _httpClient = HttpClient.newBuilder().build();
 
 }

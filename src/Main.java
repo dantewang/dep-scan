@@ -22,7 +22,11 @@ public class Main {
 			args = new String[] {"/home/repo/liferay/liferay-portal"};
 		}
 
-		_scan(Path.of(args[0]));
+		Path portalPath = Path.of(args[0]);
+
+		_scan(portalPath);
+
+		JavaxChecker.scan(portalPath, portalPath.resolve("../duplicated.csv"));
 	}
 
 	private static void _scan(Path path) throws IOException {
